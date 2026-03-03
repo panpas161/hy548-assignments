@@ -1,3 +1,6 @@
+Panagiotis Pallis
+csdp1476
+
 # 1.
 ## a)
 We will use the following commands:
