@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: csd-web-content
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: download-csd-extended
+  namespace: default
+data:
+  download-csd-extended.sh: |
+    cd /data
+    wget --no-check-certificate -E -k -p https://csd.uoc.gr
+    if [ $? -eq 0 ]; then
+      echo "sucess"
+    else
+      echo "failed"
+      exit 1
+    fi
+    if [ -d /data/csd.uoc.gr ]; then
+      echo "sucess"
+    else
+      echo "failed"
+      fi
+    ls -la /data/csd.uoc.gr
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: download-csd-extended-nginx-config
+  namespace: default
+data:
+  default.conf: |
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name localhost;
+        # wget -p mirrors into csd.uoc.gr/ under the volume root
+        root /usr/share/nginx/html/csd.uoc.gr;
+        index index.html index.htm;
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: download-csd-extended
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+      - name: download-csd-extended
+        image: ubuntu:24.04
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update && apt-get install -y --no-install-recommends wget ca-certificates &&
+            exec /bin/bash /scripts/download-csd-extended.sh
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+        - name: data-volume
+          mountPath: /data
+      volumes:
+      - name: script-volume
+        configMap:
+          name: download-csd-extended
+          defaultMode: 0755
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: csd-web-content
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: download-csd-extended-nginx
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: download-csd-extended-nginx
+  template:
+    metadata:
+      labels:
+        app: download-csd-extended-nginx
+    spec:
+      initContainers:
+      - name: wait-for-csd-content
+        image: busybox:1.36
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "waiting"
+            i=0
+            while [ $i -lt 60 ]; do
+              if [ -s /usr/share/nginx/html/csd.uoc.gr/index.html ]; then
+                echo "content ready"
+                exit 0
+              fi
+              i=$((i+1))
+              echo "waiting... ($i/60)"
+              sleep 5
+            done
+            echo "timed out waiting"
+            exit 1
+        volumeMounts:
+        - name: web-content
+          mountPath: /usr/share/nginx/html
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: web-content
+          mountPath: /usr/share/nginx/html
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+      volumes:
+      - name: web-content
+        persistentVolumeClaim:
+          claimName: csd-web-content
+      - name: nginx-config
+        configMap:
+          name: download-csd-extended-nginx-config
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: download-csd-extended-refresh
+  namespace: default
+spec:
+  schedule: "15 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: download-csd-extended
+            image: ubuntu:24.04
+            command: ["/bin/bash", "-c"]
+            args:
+              - |
+                export DEBIAN_FRONTEND=noninteractive
+                apt-get update && apt-get install -y --no-install-recommends wget ca-certificates &&
+                exec /bin/bash /scripts/download-csd-extended.sh
+            volumeMounts:
+            - name: script-volume
+              mountPath: /scripts
+            - name: data-volume
+              mountPath: /data
+          volumes:
+          - name: script-volume
+            configMap:
+              name: download-csd-extended
+              defaultMode: 0755
+          - name: data-volume
+            persistentVolumeClaim:
+              claimName: csd-web-content
+          restartPolicy: Never

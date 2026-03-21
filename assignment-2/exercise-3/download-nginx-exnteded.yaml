@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: site
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: site
+  template:
+    metadata:
+      labels:
+        app: site
+    spec:
+      containers:
+        - name: nginx-site
+          image: panpas161/hy548-nginx-download-site:1.0
+          ports:
+            - containerPort: 80
+          env:
+            - name: CSD_URL
+              value: "https://csd.uoc.gr"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: site-csd-svc
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: site-csd
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: site-math
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: site-math
+  template:
+    metadata:
+      labels:
+        app: site-math
+    spec:
+      containers:
+        - name: nginx-site
+          image: panpas161/hy548-nginx-download-site:1.0
+          ports:
+            - containerPort: 80
+          env:
+            - name: SITE_URL
+              value: "https://math.uoc.gr"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: site-math-svc
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: site-math
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: site-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /csd(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: site-csd-svc
+                port:
+                  number: 80
+          - path: /math(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: site-math-svc
+                port:
+                  number: 80
+
