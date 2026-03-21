@@ -1,3 +1,6 @@
+Panagiotis Pallis
+csdp1476
+
 1.
 
 a.
@@ -136,3 +139,4 @@ I applied the config
 then I used the tunnel
 `minikube tunnel`
 finally when I used curl it worked for folders csd and math
+
