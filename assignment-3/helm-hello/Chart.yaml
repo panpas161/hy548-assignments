@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hello-autoscale
+description: Hello world service with HPA and ingress
+type: application
+version: 0.1.0
+appVersion: "1.10"

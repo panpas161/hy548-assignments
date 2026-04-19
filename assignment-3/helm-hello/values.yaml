@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  repository: carvicsforth/hello-kubernetes
+  tag: "1.10"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+endpoint: /hello
+message: "Hello world!"
+
+resources: {}
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+ingress:
+  enabled: true
+  className: nginx

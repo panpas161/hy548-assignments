@@ -1,0 +1,46 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: fruits.hy548.csd.uoc.gr
+spec:
+  group: hy548.csd.uoc.gr
+  scope: Namespaced
+  names:
+    plural: fruits
+    singular: fruit
+    kind: Fruit
+    shortNames:
+      - fr
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - origin
+                - count
+                - grams
+              properties:
+                origin:
+                  type: string
+                count:
+                  type: integer
+                  minimum: 0
+                grams:
+                  type: integer
+                  minimum: 0
+      additionalPrinterColumns:
+        - name: Origin
+          type: string
+          jsonPath: .spec.origin
+        - name: Count
+          type: integer
+          jsonPath: .spec.count
+        - name: Grams
+          type: integer
+          jsonPath: .spec.grams

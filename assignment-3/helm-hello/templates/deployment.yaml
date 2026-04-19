@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hello-autoscale.fullname" . }}
+  labels:
+    app: {{ include "hello-autoscale.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "hello-autoscale.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "hello-autoscale.fullname" . }}
+    spec:
+      containers:
+        - name: hello-kubernetes
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: HANDLER_PATH_PREFIX
+              value: {{ .Values.endpoint | quote }}
+            - name: RENDER_PATH_PREFIX
+              value: {{ .Values.endpoint | quote }}
+            - name: MESSAGE
+              value: {{ .Values.message | quote }}
+          ports:
+            - containerPort: 8080
+              name: http
+{{- with .Values.resources }}
+{{- if .limits }}
+          resources:
+            limits:
+{{- if .limits.cpu }}
+              cpu: {{ .limits.cpu | quote }}
+{{- end }}
+{{- if .limits.memory }}
+              memory: {{ .limits.memory | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
